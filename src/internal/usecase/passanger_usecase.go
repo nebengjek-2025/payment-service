@@ -2,30 +2,26 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"notification-service/src/internal/gateway/messaging"
+	"notification-service/src/internal/entity"
 	"notification-service/src/internal/model"
 	"notification-service/src/internal/repository"
 	httpError "notification-service/src/pkg/http-error"
 	"notification-service/src/pkg/log"
 	"notification-service/src/pkg/utils"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type HandlePassengerEventRequest struct {
-	PassengerID string
-	Status      string
-	RawMessage  string
-}
-
 type PassengerUseCase struct {
 	log                    log.Log
-	userRepository         *repository.UserRepository
-	walletRepository       *repository.WalletRepository
-	notificationRepository *repository.NotificationRepository
+	UserRepository         *repository.UserRepository
+	WalletRepository       *repository.WalletRepository
+	NotificationRepository *repository.NotificationRepository
+	OrderRepository        *repository.OrderRepository
 	Redis                  redis.UniversalClient
-	UserProducer           *messaging.UserProducer
 }
 
 func NewPassengerUseCase(
@@ -33,16 +29,16 @@ func NewPassengerUseCase(
 	userRepo *repository.UserRepository,
 	walletRepo *repository.WalletRepository,
 	notifRepo *repository.NotificationRepository,
+	orderRepo *repository.OrderRepository,
 	redisClient redis.UniversalClient,
-	userProducer *messaging.UserProducer,
 ) *PassengerUseCase {
 	return &PassengerUseCase{
 		log:                    log,
-		userRepository:         userRepo,
-		walletRepository:       walletRepo,
-		notificationRepository: notifRepo,
+		UserRepository:         userRepo,
+		WalletRepository:       walletRepo,
+		NotificationRepository: notifRepo,
+		OrderRepository:        orderRepo,
 		Redis:                  redisClient,
-		UserProducer:           userProducer,
 	}
 }
 
@@ -53,7 +49,7 @@ func (uc *PassengerUseCase) GetInboxNotification(ctx context.Context, request *m
 	limit := 20
 	offset := 0
 
-	notifications, err := uc.notificationRepository.GetInboxNotifications(ctx, userID, limit, offset)
+	notifications, err := uc.NotificationRepository.GetInboxNotifications(ctx, userID, limit, offset)
 	if err != nil {
 		errObj := httpError.NewInternalServerError()
 		errObj.Message = fmt.Sprintf("Failed to get inbox notification: %v", err)
@@ -85,12 +81,138 @@ func (uc *PassengerUseCase) GetInboxNotification(ctx context.Context, request *m
 	return result
 }
 
-func (uc *PassengerUseCase) HandlePassengerEvent(ctx context.Context, req HandlePassengerEventRequest) error {
+func (uc *PassengerUseCase) SendNotificationPassanger(ctx context.Context, req *model.NotificationUser) error {
+	uc.log.Info(
+		"passenger-usecase",
+		fmt.Sprintf("Processing passenger notification from kafka: %+v", req),
+		"SendNotificationPassanger",
+		"",
+	)
 
-	uc.log.Info("passenger-usecase",
-		"Processing passenger event from kafka",
-		"HandlePassengerEvent",
-		"")
+	if req == nil {
+		return fmt.Errorf("request is nil")
+	}
+	passengerID := req.PassengerID
+	if passengerID == "" {
+		filter := entity.OrderFilter{
+			OrderID: &req.OrderID,
+		}
+
+		order, err := uc.OrderRepository.FindOneOrder(ctx, filter)
+		if err != nil {
+			uc.log.Error(
+				"passenger-usecase",
+				fmt.Sprintf("Failed to find order when resolving passengerID: %v", err),
+				"SendNotificationPassanger",
+				utils.ConvertString(err),
+			)
+			return fmt.Errorf("failed to resolve passenger from order: %w", err)
+		}
+
+		if order == nil || order.PassengerID == "" {
+			uc.log.Error(
+				"passenger-usecase",
+				fmt.Sprintf("Order not found or passengerID empty for order_id=%s", req.OrderID),
+				"SendNotificationPassanger",
+				"",
+			)
+			return fmt.Errorf("passenger not found for order_id=%s", req.OrderID)
+		}
+
+		passengerID = order.PassengerID
+	}
+	if req.OrderID == "" {
+		return fmt.Errorf("order_id is required")
+	}
+
+	var (
+		title    string
+		message  string
+		priority string
+	)
+
+	switch req.EventType {
+	case "ORDER_MATCHING":
+		title = "Sedang mencarikan driver untuk perjalanan Anda"
+		message = fmt.Sprintf(
+			"Permintaan perjalanan Anda dengan Order ID %s sedang kami proses.\n"+
+				"Driver yang sesuai akan segera ditugaskan untuk menjemput Anda.",
+			req.OrderID,
+		)
+		priority = "MEDIUM"
+
+	case "DRIVER_ON_THE_WAY":
+		title = "Driver dalam perjalanan menjemput Anda"
+		message = fmt.Sprintf(
+			"Driver telah ditugaskan dan sedang menuju titik penjemputan untuk Order ID %s.\n"+
+				"Harap bersiap di lokasi penjemputan.",
+			req.OrderID,
+		)
+		priority = "HIGH"
+
+	default:
+		uc.log.Error(
+			"passenger-usecase",
+			fmt.Sprintf("Unknown eventType for passenger notification: %s", req.EventType),
+			"SendNotificationPassanger",
+			"",
+		)
+		return nil
+	}
+
+	meta, err := json.Marshal(req)
+	if err != nil {
+		uc.log.Error(
+			"passenger-usecase",
+			fmt.Sprintf("Failed to marshal notification metadata: %v", err),
+			"SendNotificationPassanger",
+			"",
+		)
+		meta = nil
+	}
+
+	createdAt := req.Timestamp
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+
+	notificationID := fmt.Sprintf("NTF_USR_%d", time.Now().UnixNano())
+
+	notif := entity.Notification{
+		NotificationID: notificationID,
+		UserID:         passengerID,
+		Title:          title,
+		Message:        message,
+		Type:           "ORDER_UPDATE",
+		OrderID:        &req.OrderID,
+		IsRead:         false,
+		Priority:       priority,
+		Metadata:       meta,
+		CreatedAt:      createdAt,
+	}
+
+	if err := uc.NotificationRepository.SaveNotification(ctx, notif); err != nil {
+		uc.log.Error(
+			"passenger-usecase",
+			fmt.Sprintf("Failed to save passenger notification: %v", err),
+			"SendNotificationPassanger",
+			utils.ConvertString(err),
+		)
+		return err
+	}
+
+	uc.log.Info(
+		"passenger-usecase",
+		fmt.Sprintf("Passenger notification saved successfully: notification_id=%s user_id=%s order_id=%s",
+			notificationID,
+			req.PassengerID,
+			req.OrderID,
+		),
+		"SendNotificationPassanger",
+		"",
+	)
+
+	// to do integration ke push notif fcm kalau ada budget
 
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"notification-service/src/internal/delivery/http/middleware"
 	"notification-service/src/internal/delivery/http/route"
 
-	"notification-service/src/internal/gateway/messaging"
 	"notification-service/src/internal/repository"
 	"notification-service/src/internal/usecase"
 	"notification-service/src/pkg/databases/mysql"
@@ -34,11 +33,17 @@ func Bootstrap(config *BootstrapConfig) {
 	userRepository := repository.NewUserRepository(config.DB)
 	walletRepository := repository.NewWalletRepository(config.DB)
 	notificationRepository := repository.NewNotificationRepository(config.DB)
-
-	userProducer := messaging.NewUserProducer(config.Producer, config.Log)
+	orderRepository := repository.NewOrderRepository(config.DB)
 
 	// setup use cases
-	passangerUseCase := usecase.NewPassengerUseCase(config.Log, userRepository, walletRepository, notificationRepository, config.Redis, userProducer)
+	passangerUseCase := usecase.NewPassengerUseCase(
+		config.Log,
+		userRepository,
+		walletRepository,
+		notificationRepository,
+		orderRepository,
+		config.Redis,
+	)
 
 	// setup controller
 	passangerController := http.NewPassangerController(passangerUseCase, config.Log)

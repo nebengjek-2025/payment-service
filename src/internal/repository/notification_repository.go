@@ -54,3 +54,62 @@ func (r *NotificationRepository) GetInboxNotifications(ctx context.Context, user
 
 	return notifications, nil
 }
+
+func (r *NotificationRepository) SaveNotification(ctx context.Context, notif entity.Notification) error {
+	db, err := r.DB.GetDB()
+	if err != nil {
+		return err
+	}
+
+	query := `
+		INSERT INTO notifications (
+			notification_id,
+			user_id,
+			title,
+			message,
+			type,
+			order_id,
+			is_read,
+			priority,
+			metadata,
+			created_at,
+			read_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	// pastikan pointer field aman
+	var orderID any
+	if notif.OrderID != nil {
+		orderID = *notif.OrderID
+	} else {
+		orderID = nil
+	}
+
+	var readAt any
+	if notif.ReadAt != nil {
+		readAt = *notif.ReadAt
+	} else {
+		readAt = nil
+	}
+
+	_, err = db.ExecContext(
+		ctx,
+		query,
+		notif.NotificationID,
+		notif.UserID,
+		notif.Title,
+		notif.Message,
+		notif.Type,
+		orderID,
+		notif.IsRead,
+		notif.Priority,
+		notif.Metadata,
+		notif.CreatedAt,
+		readAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

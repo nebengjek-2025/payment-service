@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"notification-service/src/internal/delivery/messaging"
-	producer "notification-service/src/internal/gateway/messaging"
 	"notification-service/src/internal/repository"
 	"notification-service/src/internal/usecase"
 	"notification-service/src/pkg/databases/mysql"
@@ -27,36 +26,45 @@ type MessagingBootstrapConfig struct {
 func BootstrapMessaging(cfg *MessagingBootstrapConfig) {
 	userRepository := repository.NewUserRepository(cfg.DB)
 	walletRepository := repository.NewWalletRepository(cfg.DB)
+	driverRepository := repository.NewDriverRepository(cfg.DB)
+	orderRepository := repository.NewOrderRepository(cfg.DB)
 	notificationRepository := repository.NewNotificationRepository(cfg.DB)
+	driverUseCase := usecase.NewDriverUseCase(
+		cfg.Log,
+		userRepository,
+		driverRepository,
+		orderRepository,
+		walletRepository,
+		notificationRepository,
+		cfg.Redis,
+	)
 
-	userProducer := producer.NewUserProducer(cfg.Producer, cfg.Log)
-
-	passengerUseCase := usecase.NewPassengerUseCase(
+	passangerUsecase := usecase.NewPassengerUseCase(
 		cfg.Log,
 		userRepository,
 		walletRepository,
 		notificationRepository,
+		orderRepository,
 		cfg.Redis,
-		userProducer,
 	)
 
-	passengerHandler := messaging.NewPassengerConsumerHandler(
+	driverHandler := messaging.NewDriverConsumerHandler(
 		cfg.Log,
-		passengerUseCase,
+		driverUseCase,
 	)
 
-	// paymentHandler := messaging.NewPaymentConsumerHandler(
-	// 	cfg.Log,
-	// 	paymentUseCase,
-	// )
+	passangerHandler := messaging.NewPassangerConsumerHandler(
+		cfg.Log,
+		passangerUsecase,
+	)
 
 	routerConfig := messaging.RouterConsumerConfig{
 		Ctx:      cfg.Ctx,
 		Consumer: cfg.Consumer,
 		Logger:   cfg.Log,
 		Handlers: map[string]kafkaPkgConfluent.ConsumerHandler{
-			cfg.Config.GetString("kafka.passenger.topic"): passengerHandler,
-			// cfg.Config.GetString("kafka.payment.topic"):   paymentHandler,
+			cfg.Config.GetString("kafka.topic.driver"):    driverHandler,
+			cfg.Config.GetString("kafka.topic.passanger"): passangerHandler,
 		},
 	}
 

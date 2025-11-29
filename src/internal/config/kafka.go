@@ -12,7 +12,8 @@ func NewKafkaConfig(viper *viper.Viper) kafkaPkgConfluent.KafkaConfig {
 		KafkaUrl:      viper.GetString("kafka.bootstrap.servers"),
 		KafkaUsername: viper.GetString("kafka.username"),
 		KafkaPassword: viper.GetString("kafka.password"),
-		AppName:       viper.GetString("kafka.app.name"),
+		AppName:       viper.GetString("kafka.group.id"),
+		Offset:        viper.GetString("kafka.auto.offset.reset"),
 	}
 	return kafkaPkgConfluent.InitKafkaConfig(configKafka)
 
