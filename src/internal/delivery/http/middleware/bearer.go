@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"notification-service/src/internal/model"
-	"notification-service/src/pkg/token"
-	"notification-service/src/pkg/utils"
+	"payment-service/src/internal/model"
+	"payment-service/src/pkg/token"
+	"payment-service/src/pkg/utils"
 
 	"github.com/spf13/viper"
 

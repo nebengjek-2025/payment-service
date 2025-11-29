@@ -1,8 +1,8 @@
 package route
 
 import (
-	"notification-service/src/internal/delivery/http"
-	"notification-service/src/internal/delivery/http/middleware"
+	"payment-service/src/internal/delivery/http"
+	"payment-service/src/internal/delivery/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -24,5 +24,5 @@ func (c *RouteConfig) Setup() {
 
 func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Use(c.AuthMiddleware)
-	c.App.Get("/users/v1/inbox", c.PassangerController.GetInboxNotification)
+	c.App.Post("/payment/v1/order", c.PassangerController.GetInboxNotification)
 }

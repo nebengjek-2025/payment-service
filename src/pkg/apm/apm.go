@@ -1,8 +1,8 @@
 package apm
 
 import (
-	"notification-service/src/internal/config"
 	"os"
+	"payment-service/src/internal/config"
 
 	"github.com/spf13/viper"
 	"go.elastic.co/apm"

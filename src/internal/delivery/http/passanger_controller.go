@@ -1,11 +1,11 @@
 package http
 
 import (
-	"notification-service/src/internal/delivery/http/middleware"
-	"notification-service/src/internal/model"
-	"notification-service/src/internal/usecase"
-	"notification-service/src/pkg/log"
-	"notification-service/src/pkg/utils"
+	"payment-service/src/internal/delivery/http/middleware"
+	"payment-service/src/internal/model"
+	"payment-service/src/internal/usecase"
+	"payment-service/src/pkg/log"
+	"payment-service/src/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
 )

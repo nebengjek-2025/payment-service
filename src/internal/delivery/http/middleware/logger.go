@@ -3,8 +3,8 @@ package middleware
 import (
 	"time"
 
-	"notification-service/src/pkg/log"
-	"notification-service/src/pkg/utils"
+	"payment-service/src/pkg/log"
+	"payment-service/src/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"notification-service/src/internal/model"
-	"notification-service/src/internal/usecase"
-	"notification-service/src/pkg/log"
+	"payment-service/src/internal/model"
+	"payment-service/src/internal/usecase"
+	"payment-service/src/pkg/log"
 	"time"
 
 	k "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"

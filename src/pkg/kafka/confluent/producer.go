@@ -3,7 +3,7 @@ package kafka
 import (
 	"errors"
 	"fmt"
-	"notification-service/src/pkg/log"
+	"payment-service/src/pkg/log"
 
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )

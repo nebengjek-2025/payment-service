@@ -2,8 +2,8 @@ package messaging
 
 import (
 	"fmt"
-	kafkaPkg "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	kafkaPkg "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 
 	k "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )

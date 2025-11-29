@@ -39,11 +39,11 @@
     "pool_size": 10
   },
   "kafka": {
+    "group": {
+      "id": "notification-service"
+    },
     "bootstrap": {
       "servers": "localhost:9092"
-    },
-    "group": {
-      "id": "order-service"
     },
     "auto": {
       "offset": {
@@ -52,6 +52,11 @@
     },
     "producer": {
       "enabled": false
+    },
+    "topic":{
+      "driver":"driver-match",
+      "passanger":"order-driver-request-pickup",
+      "order":"trip-created"
     }
   }
 }

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"notification-service/src/pkg/log"
+	"payment-service/src/pkg/log"
 	"time"
 
-	"notification-service/src/internal/entity"
-	"notification-service/src/internal/model"
-	"notification-service/src/internal/repository"
+	"payment-service/src/internal/entity"
+	"payment-service/src/internal/model"
+	"payment-service/src/internal/repository"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"

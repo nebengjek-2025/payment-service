@@ -1,8 +1,8 @@
 package config
 
 import (
-	kafkaPkgConfluent "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	kafkaPkgConfluent "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 
 	"github.com/spf13/viper"
 )

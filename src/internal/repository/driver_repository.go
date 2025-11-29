@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"notification-service/src/internal/entity"
-	"notification-service/src/pkg/databases/mysql"
+	"payment-service/src/internal/entity"
+	"payment-service/src/pkg/databases/mysql"
 )
 
 type DriverRepository struct {

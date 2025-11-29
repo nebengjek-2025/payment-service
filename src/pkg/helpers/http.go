@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	error "notification-service/src/pkg/http-error"
-	"notification-service/src/pkg/utils"
+	error "payment-service/src/pkg/http-error"
+	"payment-service/src/pkg/utils"
 
 	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/net/context/ctxhttp"

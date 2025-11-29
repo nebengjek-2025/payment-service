@@ -2,9 +2,9 @@ package messaging
 
 import (
 	"encoding/json"
-	"notification-service/src/internal/model"
-	kafka "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	"payment-service/src/internal/model"
+	kafka "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 
 	k "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )

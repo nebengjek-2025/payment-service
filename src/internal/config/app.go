@@ -1,15 +1,15 @@
 package config
 
 import (
-	"notification-service/src/internal/delivery/http"
-	"notification-service/src/internal/delivery/http/middleware"
-	"notification-service/src/internal/delivery/http/route"
+	"payment-service/src/internal/delivery/http"
+	"payment-service/src/internal/delivery/http/middleware"
+	"payment-service/src/internal/delivery/http/route"
 
-	"notification-service/src/internal/repository"
-	"notification-service/src/internal/usecase"
-	"notification-service/src/pkg/databases/mysql"
-	kafkaPkgConfluent "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	"payment-service/src/internal/repository"
+	"payment-service/src/internal/usecase"
+	"payment-service/src/pkg/databases/mysql"
+	kafkaPkgConfluent "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 
 	"github.com/redis/go-redis/v9"
 

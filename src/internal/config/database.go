@@ -1,8 +1,8 @@
 package config
 
 import (
-	"notification-service/src/pkg/databases/mysql"
-	"notification-service/src/pkg/log"
+	"payment-service/src/pkg/databases/mysql"
+	"payment-service/src/pkg/log"
 
 	"github.com/spf13/viper"
 )

@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"notification-service/src/internal/config"
-	"notification-service/src/internal/delivery/http/middleware"
-	"notification-service/src/pkg/log"
 	"os"
 	"os/signal"
+	"payment-service/src/internal/config"
+	"payment-service/src/internal/delivery/http/middleware"
+	"payment-service/src/pkg/log"
 	"syscall"
 )
 
@@ -66,7 +66,7 @@ func main() {
 	}()
 
 	<-quit
-	logger.Info("main", "Server notification-service is shutting down...", "graceful", "")
+	logger.Info("main", "Server payment-service is shutting down...", "graceful", "")
 
 	cancel()
 

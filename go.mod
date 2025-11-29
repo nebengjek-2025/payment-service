@@ -1,4 +1,4 @@
-module notification-service
+module payment-service
 
 go 1.25
 

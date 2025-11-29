@@ -1,9 +1,9 @@
 package messaging
 
 import (
-	"notification-service/src/internal/model"
-	kafka "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	"payment-service/src/internal/model"
+	kafka "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 )
 
 type UserProducer struct {

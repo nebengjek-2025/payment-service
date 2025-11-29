@@ -2,8 +2,8 @@ package messaging
 
 import (
 	"context"
-	kafkaPkgConfluent "notification-service/src/pkg/kafka/confluent"
-	"notification-service/src/pkg/log"
+	kafkaPkgConfluent "payment-service/src/pkg/kafka/confluent"
+	"payment-service/src/pkg/log"
 )
 
 type RouterConsumerConfig struct {

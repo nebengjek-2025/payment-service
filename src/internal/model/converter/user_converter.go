@@ -1,8 +1,8 @@
 package converter
 
 import (
-	"notification-service/src/internal/entity"
-	"notification-service/src/internal/model"
+	"payment-service/src/internal/entity"
+	"payment-service/src/internal/model"
 )
 
 func UserToResponse(user *entity.User) *model.UserResponse {

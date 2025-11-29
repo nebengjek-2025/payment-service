@@ -2,8 +2,8 @@ package mysql
 
 import (
 	"fmt"
-	"notification-service/src/pkg/log"
-	"notification-service/src/pkg/utils"
+	"payment-service/src/pkg/log"
+	"payment-service/src/pkg/utils"
 	"runtime"
 	"sync"
 	"time"

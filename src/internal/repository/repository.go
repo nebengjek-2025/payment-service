@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"notification-service/src/internal/entity"
+	"payment-service/src/internal/entity"
 )
 
 type Repository interface {

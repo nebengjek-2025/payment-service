@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
-	"notification-service/src/pkg/log"
+	"payment-service/src/pkg/log"
 	"strings"
 	"sync"
 
