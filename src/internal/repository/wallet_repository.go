@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"order-service/src/internal/entity"
-	"order-service/src/pkg/databases/mysql"
+	"notification-service/src/internal/entity"
+	"notification-service/src/pkg/databases/mysql"
 )
 
 type WalletRepository struct {

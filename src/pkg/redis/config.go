@@ -2,7 +2,7 @@ package redis
 
 import (
 	"fmt"
-	"order-service/src/pkg/utils"
+	"notification-service/src/pkg/utils"
 	"strings"
 )
 

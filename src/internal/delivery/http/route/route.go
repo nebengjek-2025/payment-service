@@ -1,16 +1,16 @@
 package route
 
 import (
-	"order-service/src/internal/delivery/http"
-	"order-service/src/internal/delivery/http/middleware"
+	"notification-service/src/internal/delivery/http"
+	"notification-service/src/internal/delivery/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type RouteConfig struct {
-	App            *fiber.App
-	UserController *http.UserController
-	AuthMiddleware fiber.Handler
+	App                 *fiber.App
+	PassangerController *http.PassangerController
+	AuthMiddleware      fiber.Handler
 }
 
 func (c *RouteConfig) Setup() {
@@ -24,7 +24,5 @@ func (c *RouteConfig) Setup() {
 
 func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Use(c.AuthMiddleware)
-	c.App.Get("/users/v1/profile", c.UserController.GetProfile)
-	c.App.Post("/users/v1/location", c.UserController.PostLocation)
-	c.App.Post("/users/v1/find-driver", c.UserController.FindDriver)
+	c.App.Get("/users/v1/inbox", c.PassangerController.GetInboxNotification)
 }

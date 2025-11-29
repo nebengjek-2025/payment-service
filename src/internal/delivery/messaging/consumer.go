@@ -1,35 +1,30 @@
 package messaging
 
 import (
-	"order-service/src/pkg/log"
-	"order-service/src/pkg/redis"
+	"context"
+	kafkaPkgConfluent "notification-service/src/pkg/kafka/confluent"
+	"notification-service/src/pkg/log"
 )
 
-func setConfluentEvents() {
-	redisClient := redis.GetClient()
-	kafkaProducer, err := kafkaConfluent.NewProducer(kafkaConfluent.GetConfig().GetKafkaConfig(), log.GetLogger())
-	if err != nil {
-		panic(err)
-	}
-	passangerQueryMongoRepo := passangerRepoQueries.NewQueryMongodbRepository(mongodb.NewMongoDBLogger(mongodb.GetSlaveConn(), mongodb.GetSlaveDBName(), log.GetLogger()))
-	passangerCommandRepo := passangerRepoCommands.NewCommandMongodbRepository(mongodb.NewMongoDBLogger(mongodb.GetSlaveConn(), mongodb.GetSlaveDBName(), log.GetLogger()))
-	passangerCommandUsecase := passangerUsecase.NewCommandUsecase(passangerQueryMongoRepo, passangerCommandRepo, redisClient, kafkaProducer)
-	passangerConsumer, errPassanger := kafkaConfluent.NewConsumer(kafkaConfluent.GetConfig().GetKafkaConfig(), log.GetLogger())
+type RouterConsumerConfig struct {
+	Ctx      context.Context
+	Consumer kafkaPkgConfluent.Consumer
+	Logger   log.Log
+	Handlers map[string]kafkaPkgConfluent.ConsumerHandler
+}
 
-	//
-	driverQueryMongoRepo := driverRepoQueries.NewQueryMongodbRepository(mongodb.NewMongoDBLogger(mongodb.GetSlaveConn(), mongodb.GetSlaveDBName(), log.GetLogger()))
-	driverCommandRepo := driverRepoCommands.NewCommandMongodbRepository(mongodb.NewMongoDBLogger(mongodb.GetSlaveConn(), mongodb.GetSlaveDBName(), log.GetLogger()))
-	driverCommandUsecase := driverUsecase.NewCommandUsecase(driverQueryMongoRepo, driverCommandRepo, redisClient, kafkaProducer)
-	driverConsumer, errDriver := kafkaConfluent.NewConsumer(kafkaConfluent.GetConfig().GetKafkaConfig(), log.GetLogger())
+func (r RouterConsumerConfig) Setup() {
+	router := NewTopicRouterHandler(r.Logger)
 
-	passangerHandler.InitPassangerEventHandler(passangerCommandUsecase, passangerConsumer)
-	driverHandler.InitPassangerEventHandler(driverCommandUsecase, driverConsumer)
-
-	if errPassanger != nil {
-		log.GetLogger().Error("main", "error registerNewConsumer", "setConfluentEvents", errPassanger.Error())
+	for topic, handler := range r.Handlers {
+		router.Register(topic, handler)
 	}
 
-	if errDriver != nil {
-		log.GetLogger().Error("main", "error registerNewConsumer", "setConfluentEvents", errDriver.Error())
+	topics := make([]string, 0, len(r.Handlers))
+	for topic := range r.Handlers {
+		topics = append(topics, topic)
 	}
+
+	r.Consumer.SetHandler(router)
+	r.Consumer.Subscribe(r.Ctx, topics...)
 }

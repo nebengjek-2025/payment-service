@@ -1,16 +1,20 @@
 package kafka
 
 import (
+	"context"
+
 	k "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 type Producer interface {
-	Publish(topic string, message []byte)
+	Publish(message *k.Message) error
+	PublishChannel(topic string, message []byte)
 }
 
 type Consumer interface {
 	SetHandler(handler ConsumerHandler)
-	Subscribe(topics ...string)
+	Subscribe(ctx context.Context, topics ...string)
+	Close() error
 }
 
 type ConsumerHandler interface {

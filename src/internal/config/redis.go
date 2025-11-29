@@ -1,7 +1,7 @@
 package config
 
 import (
-	redisModule "order-service/src/pkg/redis"
+	redisModule "notification-service/src/pkg/redis"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"

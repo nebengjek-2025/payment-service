@@ -1,7 +1,7 @@
 package apm
 
 import (
-	"order-service/src/internal/config"
+	"notification-service/src/internal/config"
 	"os"
 
 	"github.com/spf13/viper"

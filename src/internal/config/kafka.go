@@ -1,8 +1,8 @@
 package config
 
 import (
-	kafkaPkgConfluent "order-service/src/pkg/kafka/confluent"
-	"order-service/src/pkg/log"
+	kafkaPkgConfluent "notification-service/src/pkg/kafka/confluent"
+	"notification-service/src/pkg/log"
 
 	"github.com/spf13/viper"
 )

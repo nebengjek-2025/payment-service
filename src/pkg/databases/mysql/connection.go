@@ -2,8 +2,8 @@ package mysql
 
 import (
 	"fmt"
-	"order-service/src/pkg/log"
-	"order-service/src/pkg/utils"
+	"notification-service/src/pkg/log"
+	"notification-service/src/pkg/utils"
 	"runtime"
 	"sync"
 	"time"

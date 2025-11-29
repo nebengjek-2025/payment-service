@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"order-service/src/internal/entity"
+	"notification-service/src/internal/entity"
 )
 
 type Repository interface {

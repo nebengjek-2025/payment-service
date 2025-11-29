@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"order-service/src/pkg/utils"
+	"notification-service/src/pkg/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 )

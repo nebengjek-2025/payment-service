@@ -1,8 +1,9 @@
 package kafka
 
 import (
+	"context"
 	"fmt"
-	"order-service/src/pkg/log"
+	"notification-service/src/pkg/log"
 	"strings"
 	"sync"
 
@@ -33,33 +34,45 @@ func (c *consumer) SetHandler(handler ConsumerHandler) {
 	c.handler = handler
 }
 
-func (c *consumer) Subscribe(topics ...string) {
+func (c *consumer) Subscribe(ctx context.Context, topics ...string) {
 	if c.handler == nil {
 		joinTopic := strings.Join(topics, ", ")
 		msg := fmt.Sprintf("Kafka Consumer Error: Topics: [%s] There is no consumer handler to handle message from incoming event", joinTopic)
-		c.logger.Error("", msg, "", "")
+		c.logger.Error("kafka-consumer", msg, "Subscribe", "")
 		return
 	}
-	var wg sync.WaitGroup
-	var mtx sync.Mutex
 
-	c.consumer.SubscribeTopics(topics, nil)
+	if err := c.consumer.SubscribeTopics(topics, nil); err != nil {
+		c.logger.Error("kafka-consumer", fmt.Sprintf("Failed to subscribe topics %v: %v", topics, err), "Subscribe", "")
+		return
+	}
+
 	go func() {
-		for {
-			wg.Add(1)
+		c.logger.Info("kafka-consumer", fmt.Sprintf("Start consuming topics: %v", topics), "Subscribe", "")
 
-			msg, err := c.consumer.ReadMessage(-1)
-			if err != nil {
-				msg := fmt.Sprintf("Kafka Consumer Error: %v (%v)\n", err, msg)
-				c.logger.Error("", msg, "", "")
-				continue
+		for {
+			select {
+			case <-ctx.Done():
+				c.logger.Info("kafka-consumer", "Stopping consumer because context is done", "Subscribe", "")
+				return
+			default:
+				msg, err := c.consumer.ReadMessage(-1)
+				if err != nil {
+					c.logger.Error("kafka-consumer", fmt.Sprintf("Kafka Consumer Error: %v", err), "ReadMessage", "")
+					continue
+				}
+
+				// Kalau handler tidak thread-safe & kamu mau banyak goroutine, baru butuh lock.
+				c.handler.HandleMessage(msg)
+
+				if _, err := c.consumer.CommitMessage(msg); err != nil {
+					c.logger.Error("kafka-consumer", fmt.Sprintf("Failed to commit message: %v", err), "CommitMessage", "")
+				}
 			}
-			mtx.Lock()
-			c.handler.HandleMessage(msg)
-			mtx.Unlock()
-			wg.Done()
-			c.consumer.CommitMessage(msg)
 		}
 	}()
-	wg.Wait()
+}
+
+func (c *consumer) Close() error {
+	return c.consumer.Close()
 }

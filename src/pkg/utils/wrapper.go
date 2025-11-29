@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	httpError "order-service/src/pkg/http-error"
-	"order-service/src/pkg/log"
+	httpError "notification-service/src/pkg/http-error"
+	"notification-service/src/pkg/log"
 
 	"github.com/gofiber/fiber/v2"
 )
