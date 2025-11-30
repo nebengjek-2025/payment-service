@@ -38,6 +38,7 @@ func Bootstrap(config *BootstrapConfig) {
 	// setup use cases
 	walletUseCase := usecase.NewWalletUseCase(
 		config.Log,
+		config.Config,
 		userRepository,
 		orderRepository,
 		walletRepository,

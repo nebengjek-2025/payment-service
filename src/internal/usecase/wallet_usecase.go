@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 )
 
 type WalletUseCase struct {
 	Log               log.Log
+	Config            *viper.Viper
 	UserRepository    *repository.UserRepository
 	WalletRepository  *repository.WalletRepository
 	PaymentRepository *repository.PaymentRepository
@@ -27,6 +29,7 @@ type WalletUseCase struct {
 
 func NewWalletUseCase(
 	log log.Log,
+	config *viper.Viper,
 	userRepo *repository.UserRepository,
 	orderRepo *repository.OrderRepository,
 	walletRepo *repository.WalletRepository,
@@ -36,6 +39,7 @@ func NewWalletUseCase(
 ) *WalletUseCase {
 	return &WalletUseCase{
 		Log:               log,
+		Config:            config,
 		UserRepository:    userRepo,
 		WalletRepository:  walletRepo,
 		PaymentRepository: paymentRepo,
@@ -320,4 +324,263 @@ func (uc *WalletUseCase) HoldWalletForOrder(ctx context.Context, request *model.
 
 	return nil
 
+}
+
+func (uc *WalletUseCase) DebetWallet(ctx context.Context, req *model.NotificationUser) error {
+	uc.Log.Info(
+		"wallet-usecase",
+		fmt.Sprintf("Processing debit wallet after trip completed: %+v", req),
+		"DebetWallet",
+		"",
+	)
+	if req.EventType != "ORDER_COMPLETED" {
+		uc.Log.Info("wallet-usecase", "Skip DebetWallet, eventType not ORDER_COMPLETED", "DebetWallet", req.EventType)
+		return nil
+	}
+	order, err := uc.OrderRepository.FindOneOrder(ctx, entity.OrderFilter{
+		OrderID:     &req.OrderID,
+		PassengerID: &req.PassengerID,
+		DriverID:    &req.DriverID,
+	})
+	if err != nil || order == nil {
+		uc.Log.Error("wallet-usecase", "Order not found for debit", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("order not found")
+	}
+
+	if order.PaymentMethod != "WALLET" && order.PaymentMethod != "EWALLET" {
+		uc.Log.Info("wallet-usecase", "Payment method is not wallet, skip debit", "DebetWallet", order.PaymentMethod)
+		return nil
+	}
+	if order.PaymentStatus == "PAID" {
+		uc.Log.Info("wallet-usecase", "Order already paid, skip debit", "DebetWallet", order.OrderID)
+		return nil
+	}
+
+	var actualPrice float64
+	if order.EstimatedFare != nil && *order.EstimatedFare > 0 {
+		actualPrice = *order.EstimatedFare
+	} else if order.BestRoutePrice > 0 {
+		actualPrice = order.BestRoutePrice
+	} else {
+		actualPrice = order.MaxPrice
+	}
+
+	if actualPrice <= 0 {
+		uc.Log.Error("wallet-usecase", "Invalid actual price", "DebetWallet", utils.ConvertString(order))
+		return fmt.Errorf("invalid actual price")
+	}
+
+	maxPrice := order.MaxPrice
+	if maxPrice <= 0 {
+		uc.Log.Error("wallet-usecase", "Invalid max price", "DebetWallet", utils.ConvertString(order))
+		return fmt.Errorf("invalid max price")
+	}
+
+	actualPaid := actualPrice
+	if actualPaid > maxPrice {
+		actualPaid = maxPrice
+	}
+
+	var refundAmount float64
+	if actualPrice < maxPrice {
+		refundAmount = maxPrice - actualPrice
+	}
+
+	db, err := uc.DB.GetDB()
+	if err != nil {
+		uc.Log.Error("wallet-usecase", "failed to get db connection", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to get db connection: %v", err)
+	}
+
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		uc.Log.Error("wallet-usecase", "failed to start transaction", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	paymentTx, err := uc.PaymentRepository.FindPendingPaymentByOrder(ctx, tx.Tx, order.ID)
+	if err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to get payment transaction", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to get payment transaction: %v", err)
+	}
+	if paymentTx == nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "No pending payment transaction for order", "DebetWallet", order.OrderID)
+		return fmt.Errorf("no pending payment transaction for order")
+	}
+
+	now := time.Now()
+
+	if refundAmount > 0 {
+		passengerWallet, err := uc.WalletRepository.GetWalletForUpdate(ctx, tx.Tx, req.PassengerID)
+		if err != nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "failed to get passenger wallet", "DebetWallet", utils.ConvertString(err))
+			return fmt.Errorf("failed to get passenger wallet: %v", err)
+		}
+		if passengerWallet == nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "Passenger wallet not found for refund", "DebetWallet", req.PassengerID)
+			return fmt.Errorf("passenger wallet not found")
+		}
+
+		newPassengerBalance := passengerWallet.Balance + refundAmount
+		if err := uc.WalletRepository.UpdateWalletBalance(ctx, tx.Tx, passengerWallet.ID, newPassengerBalance); err != nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "failed to update passenger wallet balance", "DebetWallet", utils.ConvertString(err))
+			return fmt.Errorf("failed to update passenger wallet balance: %v", err)
+		}
+
+		refundTrx := &entity.WalletTransaction{
+			WalletID:      passengerWallet.ID,
+			TransactionID: utils.GenerateUniqueIDWithPrefix("wtrx"),
+			Amount:        refundAmount,
+			Type:          "credit",
+			Description:   fmt.Sprintf("Refund difference for order %s", req.OrderID),
+			Timestamp:     now,
+		}
+		if err := uc.WalletRepository.InsertWalletTransaction(ctx, tx.Tx, refundTrx); err != nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "failed to insert refund transaction", "DebetWallet", utils.ConvertString(err))
+			return fmt.Errorf("failed to insert refund transaction: %v", err)
+		}
+
+		// event log refund
+		refundEvent := &entity.PaymentEventLog{
+			PaymentTransactionID: paymentTx.ID,
+			EventType:            "REFUND",
+			EventDescription:     fmt.Sprintf("Refunded %.2f to passenger for order %s", refundAmount, req.OrderID),
+			RawPayload:           nil,
+		}
+		if err := uc.PaymentRepository.InsertPaymentEventLogTx(ctx, tx.Tx, refundEvent); err != nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "failed to insert refund event log", "DebetWallet", utils.ConvertString(err))
+			return fmt.Errorf("failed to insert refund event log: %v", err)
+		}
+	}
+
+	driverWallet, err := uc.WalletRepository.GetWalletForUpdate(ctx, tx.Tx, req.DriverID)
+	if err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to get driver wallet", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to get driver wallet: %v", err)
+	}
+	if driverWallet == nil {
+		walletID := utils.GenerateUniqueIDWithPrefix("wlt")
+		driverWallet = &entity.Wallet{
+			ID:      walletID,
+			UserID:  req.DriverID,
+			Balance: 0,
+		}
+		if err := uc.WalletRepository.InsertWallet(ctx, tx.Tx, driverWallet); err != nil {
+			_ = tx.Rollback()
+			uc.Log.Error("wallet-usecase", "failed to create driver wallet", "DebetWallet", utils.ConvertString(err))
+			return fmt.Errorf("failed to create driver wallet: %v", err)
+		}
+	}
+
+	platformFeeRate := uc.Config.GetFloat64("platform.fee")
+	taxRate := uc.Config.GetFloat64("platform.tax")
+	platformFee := actualPaid * platformFeeRate
+	taxAmount := (actualPaid - platformFee) * taxRate
+
+	driverSettlement := actualPaid - platformFee - taxAmount
+	if driverSettlement < 0 {
+		driverSettlement = 0
+	}
+	uc.Log.Info("wallet-usecase",
+		fmt.Sprintf("PlatformFeeRate=%.2f, TaxRate=%.2f, PlatformFee=%.2f, TaxAmount=%.2f, DriverSettlement=%.2f",
+			platformFeeRate, taxRate, platformFee, taxAmount, driverSettlement),
+		"DebetWallet", "")
+	newDriverBalance := driverWallet.Balance + driverSettlement
+	if err := uc.WalletRepository.UpdateWalletBalance(ctx, tx.Tx, driverWallet.ID, newDriverBalance); err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to update driver wallet balance", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to update driver wallet balance: %v", err)
+	}
+
+	driverTrx := &entity.WalletTransaction{
+		WalletID:      driverWallet.ID,
+		TransactionID: utils.GenerateUniqueIDWithPrefix("wtrx"),
+		Amount:        driverSettlement,
+		Type:          "credit",
+		Description:   fmt.Sprintf("Trip earning for order %s", req.OrderID),
+		Timestamp:     now,
+	}
+	if err := uc.WalletRepository.InsertWalletTransaction(ctx, tx.Tx, driverTrx); err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to insert driver settlement transaction", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to insert driver settlement transaction: %v", err)
+	}
+	settlement := &entity.PaymentSettlement{
+		PaymentTransactionID: paymentTx.ID,
+		DriverID:             req.DriverID,
+		SettlementAmount:     driverSettlement,
+		PlatformFee:          platformFee,
+		TaxAmount:            taxAmount,
+		Status:               "PAID",
+		SettlementMethod:     "WALLET",
+		CreatedAt:            time.Now(),
+	}
+
+	if err := uc.PaymentRepository.InsertPaymentSettlementTx(ctx, tx, settlement); err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to insert payment settlement", "DebetWallet", err.Error())
+		return err
+	}
+
+	paymentTx.Amount = actualPaid
+	paymentTx.PaymentStatus = "SUCCESS"
+	paymentTx.PaidAt = &now
+
+	if err := uc.PaymentRepository.UpdatePaymentTransactionTx(ctx, tx, paymentTx); err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to update payment transaction", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to update payment transaction: %v", err)
+	}
+
+	successEvent := &entity.PaymentEventLog{
+		PaymentTransactionID: paymentTx.ID,
+		EventType:            "SUCCESS",
+		EventDescription:     fmt.Sprintf("Wallet payment captured %.2f for order %s", actualPaid, req.OrderID),
+		RawPayload:           nil,
+	}
+	if err := uc.PaymentRepository.InsertPaymentEventLogTx(ctx, tx.Tx, successEvent); err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to insert success event log", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to insert success event log: %v", err)
+	}
+
+	ok, err := uc.OrderRepository.MarkOrderPaidTx(ctx, tx.Tx, req.OrderID, req.PassengerID, req.DriverID)
+	if err != nil {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "failed to update order payment status", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to update order payment status: %v", err)
+	}
+	if !ok {
+		_ = tx.Rollback()
+		uc.Log.Error("wallet-usecase", "order payment status not updated (maybe concurrent)", "DebetWallet", req.OrderID)
+		return fmt.Errorf("order payment status not updated")
+	}
+
+	if err := tx.Commit(); err != nil {
+		uc.Log.Error("wallet-usecase", "failed to commit transaction", "DebetWallet", utils.ConvertString(err))
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	uc.Log.Info(
+		"wallet-usecase",
+		fmt.Sprintf("Debit wallet + settlement success. order=%s paid=%.2f refund=%.2f", req.OrderID, actualPaid, refundAmount),
+		"DebetWallet",
+		"",
+	)
+
+	return nil
 }

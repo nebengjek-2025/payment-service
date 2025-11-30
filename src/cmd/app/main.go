@@ -9,11 +9,17 @@ import (
 	"payment-service/src/internal/delivery/http/middleware"
 	"payment-service/src/pkg/log"
 	"syscall"
+	"time"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		panic(fmt.Sprintf("failed to load timezone: %v", err))
+	}
+	time.Local = loc
 	viperConfig := config.NewViper()
 	viperConfig.SetDefault("log.level", "DEBUG")
 	viperConfig.SetDefault("app.name", "NOTIFICATION_SERVICE")

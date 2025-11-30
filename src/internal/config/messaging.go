@@ -31,6 +31,7 @@ func BootstrapMessaging(cfg *MessagingBootstrapConfig) {
 
 	walletUseCase := usecase.NewWalletUseCase(
 		cfg.Log,
+		cfg.Config,
 		userRepository,
 		orderRepository,
 		walletRepository,
@@ -44,14 +45,18 @@ func BootstrapMessaging(cfg *MessagingBootstrapConfig) {
 		walletUseCase,
 	)
 
+	walletHandler := messaging.NewOrderConsumerHandler(
+		cfg.Log,
+		walletUseCase,
+	)
+
 	routerConfig := messaging.RouterConsumerConfig{
 		Ctx:      cfg.Ctx,
 		Consumer: cfg.Consumer,
 		Logger:   cfg.Log,
 		Handlers: map[string]kafkaPkgConfluent.ConsumerHandler{
-			// cfg.Config.GetString("kafka.topic.driver"):    driverHandler,
-			// cfg.Config.GetString("kafka.topic.passanger"): passangerHandler,
-			cfg.Config.GetString("kafka.topic.order"): orderHandler,
+			cfg.Config.GetString("kafka.topic.payment"): walletHandler,
+			cfg.Config.GetString("kafka.topic.order"):   orderHandler,
 		},
 	}
 
