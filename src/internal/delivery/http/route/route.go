@@ -8,9 +8,10 @@ import (
 )
 
 type RouteConfig struct {
-	App              *fiber.App
-	WalletController *http.WalletController
-	AuthMiddleware   fiber.Handler
+	App               *fiber.App
+	WalletController  *http.WalletController
+	PaymentController *http.PaymentController
+	AuthMiddleware    fiber.Handler
 }
 
 func (c *RouteConfig) Setup() {
@@ -18,12 +19,18 @@ func (c *RouteConfig) Setup() {
 	c.App.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.SendString("OK")
 	})
+	c.SetupGuestRoute()
 	c.SetupAuthRoute()
 
+}
+func (c *RouteConfig) SetupGuestRoute() {
+	c.App.Get("/payment/v1/webhook", c.PaymentController.CallbackPayment)
 }
 
 func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Use(c.AuthMiddleware)
 	c.App.Post("/wallet/v1/top-up", c.WalletController.TopUpWallet)
 	c.App.Get("/wallet/v1/info", c.WalletController.GetWallet)
+
+	c.App.Get("/payment/v1/trip", c.PaymentController.GeneratePayment)
 }

@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -199,4 +200,10 @@ func GenerateUniqueIDWithPrefix(entityType string) string {
 	randomHex := strings.ToUpper(hex.EncodeToString(randomBytes))
 
 	return fmt.Sprintf("NBJ_%s_%s_%s", prefix, timestamp, randomHex)
+}
+
+func GenerateMidtransSignature(orderID, statusCode, grossAmount, serverKey string) string {
+	raw := orderID + statusCode + grossAmount + serverKey
+	hash := sha512.Sum512([]byte(raw))
+	return hex.EncodeToString(hash[:])
 }

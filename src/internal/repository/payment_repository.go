@@ -233,6 +233,28 @@ func (r *OrderRepository) MarkOrderPaidTx(ctx context.Context, tx *sql.Tx, order
 	return rows > 0, nil
 }
 
+func (r *PaymentRepository) FindByOrderIDForUpdate(ctx context.Context, tx *sqlx.Tx, orderID string) (*entity.PaymentTransaction, error) {
+	query := `
+		SELECT *
+		FROM payment_transactions
+		WHERE provider_reference_id = ? OR ride_order_id = (
+			SELECT id FROM orders WHERE order_id = ?
+		)
+		LIMIT 1
+		FOR UPDATE
+	`
+
+	var p entity.PaymentTransaction
+	err := tx.GetContext(ctx, &p, query, orderID, orderID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 func (r *PaymentRepository) InsertPaymentSettlementTx(
 	ctx context.Context,
 	tx *sqlx.Tx,
