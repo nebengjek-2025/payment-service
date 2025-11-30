@@ -31,28 +31,31 @@ type BootstrapConfig struct {
 func Bootstrap(config *BootstrapConfig) {
 	// setup repositories
 	userRepository := repository.NewUserRepository(config.DB)
-	notificationRepository := repository.NewNotificationRepository(config.DB)
 	orderRepository := repository.NewOrderRepository(config.DB)
+	walletRepository := repository.NewWalletRepository(config.DB)
+	paymentRepository := repository.NewPaymentRepository(config.DB)
 
 	// setup use cases
-	passangerUseCase := usecase.NewPassengerUseCase(
+	walletUseCase := usecase.NewWalletUseCase(
 		config.Log,
 		userRepository,
-		notificationRepository,
 		orderRepository,
+		walletRepository,
+		paymentRepository,
+		config.DB,
 		config.Redis,
 	)
 
 	// setup controller
-	passangerController := http.NewPassangerController(passangerUseCase, config.Log)
+	walletController := http.NewWalletController(walletUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.VerifyBearer(config.Config)
 
 	routeConfig := route.RouteConfig{
-		App:                 config.App,
-		PassangerController: passangerController,
-		AuthMiddleware:      authMiddleware,
+		App:              config.App,
+		WalletController: walletController,
+		AuthMiddleware:   authMiddleware,
 	}
 	routeConfig.Setup()
 }

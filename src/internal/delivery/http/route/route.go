@@ -8,9 +8,9 @@ import (
 )
 
 type RouteConfig struct {
-	App                 *fiber.App
-	PassangerController *http.PassangerController
-	AuthMiddleware      fiber.Handler
+	App              *fiber.App
+	WalletController *http.WalletController
+	AuthMiddleware   fiber.Handler
 }
 
 func (c *RouteConfig) Setup() {
@@ -24,5 +24,6 @@ func (c *RouteConfig) Setup() {
 
 func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Use(c.AuthMiddleware)
-	c.App.Post("/payment/v1/order", c.PassangerController.GetInboxNotification)
+	c.App.Post("/wallet/v1/top-up", c.WalletController.TopUpWallet)
+	c.App.Get("/wallet/v1/info", c.WalletController.GetWallet)
 }

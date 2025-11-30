@@ -25,39 +25,23 @@ type MessagingBootstrapConfig struct {
 
 func BootstrapMessaging(cfg *MessagingBootstrapConfig) {
 	userRepository := repository.NewUserRepository(cfg.DB)
-	driverRepository := repository.NewDriverRepository(cfg.DB)
 	orderRepository := repository.NewOrderRepository(cfg.DB)
-	notificationRepository := repository.NewNotificationRepository(cfg.DB)
-	driverUseCase := usecase.NewDriverUseCase(
+	walletRepository := repository.NewWalletRepository(cfg.DB)
+	paymentRepository := repository.NewPaymentRepository(cfg.DB)
+
+	walletUseCase := usecase.NewWalletUseCase(
 		cfg.Log,
 		userRepository,
-		driverRepository,
 		orderRepository,
-		notificationRepository,
+		walletRepository,
+		paymentRepository,
+		cfg.DB,
 		cfg.Redis,
-	)
-
-	passangerUsecase := usecase.NewPassengerUseCase(
-		cfg.Log,
-		userRepository,
-		notificationRepository,
-		orderRepository,
-		cfg.Redis,
-	)
-
-	driverHandler := messaging.NewDriverConsumerHandler(
-		cfg.Log,
-		driverUseCase,
-	)
-
-	passangerHandler := messaging.NewPassangerConsumerHandler(
-		cfg.Log,
-		passangerUsecase,
 	)
 
 	orderHandler := messaging.NewOrderConsumerHandler(
 		cfg.Log,
-		passangerUsecase,
+		walletUseCase,
 	)
 
 	routerConfig := messaging.RouterConsumerConfig{
@@ -65,9 +49,9 @@ func BootstrapMessaging(cfg *MessagingBootstrapConfig) {
 		Consumer: cfg.Consumer,
 		Logger:   cfg.Log,
 		Handlers: map[string]kafkaPkgConfluent.ConsumerHandler{
-			cfg.Config.GetString("kafka.topic.driver"):    driverHandler,
-			cfg.Config.GetString("kafka.topic.passanger"): passangerHandler,
-			cfg.Config.GetString("kafka.topic.order"):     orderHandler,
+			// cfg.Config.GetString("kafka.topic.driver"):    driverHandler,
+			// cfg.Config.GetString("kafka.topic.passanger"): passangerHandler,
+			cfg.Config.GetString("kafka.topic.order"): orderHandler,
 		},
 	}
 

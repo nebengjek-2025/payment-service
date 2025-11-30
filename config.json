@@ -1,10 +1,10 @@
 {
   "app": {
-    "name": "order-service"
+    "name": "payment-service"
   },
   "web": {
     "prefork": false,
-    "port": 3000
+    "port": 4000
   },
   "log": {
     "level": 6
@@ -40,7 +40,7 @@
   },
   "kafka": {
     "group": {
-      "id": "notification-service"
+      "id": "payment-service"
     },
     "bootstrap": {
       "servers": "localhost:9092"

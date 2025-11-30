@@ -14,16 +14,16 @@ import (
 
 type OrderConsumerHandler struct {
 	logger       log.Log
-	OrderUseCase *usecase.PassengerUseCase
+	OrderUseCase *usecase.WalletUseCase
 }
 
 func NewOrderConsumerHandler(
 	logger log.Log,
-	orderUsecase *usecase.PassengerUseCase,
+	walletUsecase *usecase.WalletUseCase,
 ) *OrderConsumerHandler {
 	return &OrderConsumerHandler{
 		logger:       logger,
-		OrderUseCase: orderUsecase,
+		OrderUseCase: walletUsecase,
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *OrderConsumerHandler) HandleMessage(message *k.Message) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := h.OrderUseCase.SendNotificationOrder(ctx, &event)
+	err := h.OrderUseCase.HoldWalletForOrder(ctx, &event)
 	if err != nil {
 		h.logger.Error(
 			"order-consumer",
