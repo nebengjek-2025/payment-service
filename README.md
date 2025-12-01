@@ -39,9 +39,6 @@ This is Order Service create with golang and implement clean architecture.
 
 All configuration is in `config.json` file.
 
-## API Spec
-
-All API Spec is in `api` folder.
 
 ## Run Application
 

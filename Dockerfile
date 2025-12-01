@@ -1,25 +1,42 @@
-FROM golang:1.25-alpine as builder
+FROM golang:1.25-alpine AS builder
 
-# Install needed tools
-RUN apk add --no-cache bash git openssh curl vim busybox-extras procps
+RUN apk add --no-cache \
+    build-base \
+    ca-certificates \
+    git \
+    librdkafka-dev \
+    pkgconfig \
+    tzdata 
 
-ADD ./ /app
-WORKDIR /app/cmd
+WORKDIR /app
 
-RUN go build -o order-service .
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN cd /app
+COPY src ./src
 
-# Run stage
-FROM --platform=linux/amd64 debian:bullseye-slim
+ENV CGO_ENABLED=1
 
-# Update package lists and upgrade packages to fix vulnerabilities
-RUN apt-get update && apt-get upgrade -y
 
-# Set working directory
-WORKDIR /app/cmd
-COPY --from=builder /app/cmd/utility-monitoring .
+RUN go build -tags dynamic -ldflags="-s -w" -o payment-service ./src/cmd/app/main.go
 
-RUN apt-get install -y tzdata && apt-get clean
+FROM alpine:3.20
 
-CMD ["/app/cmd/order-service"]
+RUN apk add --no-cache \
+    ca-certificates \
+    librdkafka \
+    tzdata && \
+    adduser -D -g '' appuser
+
+
+WORKDIR /app
+
+COPY --from=builder /app/payment-service ./payment-service
+
+ENV TZ=Asia/Jakarta
+
+EXPOSE 8080
+
+USER appuser
+
+ENTRYPOINT ["./payment-service"]

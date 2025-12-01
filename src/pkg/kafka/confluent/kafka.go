@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/base64"
 
 	k "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
@@ -28,6 +29,7 @@ type KafkaConfig struct {
 	SaslMechanism string
 	AppName       string
 	Offset        string
+	KafkaCaCert   string
 }
 
 type Cfg struct {
@@ -36,6 +38,7 @@ type Cfg struct {
 	KafkaPassword string
 	AppName       string
 	Offset        string
+	KafkaCaCert   string
 }
 
 var kafkaConfig KafkaConfig
@@ -49,6 +52,7 @@ func InitKafkaConfig(cfg Cfg) KafkaConfig {
 		AppName:       cfg.AppName,
 		SaslMechanism: "PLAIN",
 		Offset:        cfg.Offset,
+		KafkaCaCert:   cfg.KafkaCaCert,
 	}
 	return kafkaConfig
 }
@@ -56,14 +60,26 @@ func InitKafkaConfig(cfg Cfg) KafkaConfig {
 func GetConfig() KafkaConfig {
 	return kafkaConfig
 }
+func decodeKey(secret string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
+}
 
 func (kc KafkaConfig) GetKafkaConfig() *k.ConfigMap {
 	kafkaCfg := k.ConfigMap{}
 
 	if kc.Username != "" {
+		ca, err := decodeKey(kc.KafkaCaCert)
+		if err != nil {
+			panic(err)
+		}
 		kafkaCfg["sasl.mechanism"] = kc.SaslMechanism
 		kafkaCfg["sasl.username"] = kc.Username
 		kafkaCfg["sasl.password"] = kc.Password
+		kafkaCfg["ssl.ca.pem"] = ca
 		kafkaCfg["security.protocol"] = "sasl_ssl"
 	}
 	kafkaCfg.SetKey("bootstrap.servers", kc.Address)

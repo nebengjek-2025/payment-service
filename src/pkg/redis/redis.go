@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -12,15 +13,22 @@ var redisClient redis.UniversalClient
 
 func InitConnection() {
 	if !AppConfigData.UseRedis {
-		// Create Redis Client
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:      fmt.Sprintf("%v:%v", RedisConfigData.Host, RedisConfigData.Port),
-			Password:  RedisConfigData.Password,
-			DB:        RedisConfigData.DB,
-			TLSConfig: &tls.Config{},
+			Addr:     fmt.Sprintf("%s:%v", RedisConfigData.Host, RedisConfigData.Port),
+			Username: "default",
+			Password: RedisConfigData.Password,
+			DB:       RedisConfigData.DB,
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+			DialTimeout:  5 * time.Second,
+			ReadTimeout:  3 * time.Second,
+			WriteTimeout: 3 * time.Second,
+			PoolSize:     10,
+			MaxRetries:   2,
 		})
-		// Test Connection
 		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+			fmt.Println("REDIS ERROR:", err.Error())
 			panic("cannot connect to Redis")
 		}
 	} else {
