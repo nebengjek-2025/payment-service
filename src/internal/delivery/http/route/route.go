@@ -32,5 +32,5 @@ func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Post("/wallet/v1/top-up", c.WalletController.TopUpWallet)
 	c.App.Get("/wallet/v1/info", c.WalletController.GetWallet)
 
-	c.App.Get("/payment/v1/trip", c.PaymentController.GeneratePayment)
+	c.App.Post("/payment/v1/trip", c.PaymentController.GeneratePayment)
 }
