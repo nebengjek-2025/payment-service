@@ -31,6 +31,7 @@ type PaymentUseCase struct {
 
 func NewPaymentUseCase(
 	logger log.Log,
+	config *viper.Viper,
 	userRepository *repository.UserRepository,
 	paymentRepository *repository.PaymentRepository,
 	orderRepository *repository.OrderRepository,
@@ -39,6 +40,7 @@ func NewPaymentUseCase(
 ) *PaymentUseCase {
 	return &PaymentUseCase{
 		Log:               logger,
+		Config:            config,
 		UserRepository:    userRepository,
 		PaymentRepository: paymentRepository,
 		OrderRepository:   orderRepository,
@@ -118,7 +120,7 @@ func (uc *PaymentUseCase) GenerateQrisPayment(ctx context.Context, req *model.Cr
 	}
 
 	snapResp, err := snapClient.CreateTransaction(snapReq)
-	if err != nil {
+	if snapResp == nil {
 		errObj := httpError.NewInternalServerError()
 		errObj.Message = fmt.Sprintf("failed create qris via midtrans snap: %v", err)
 		result.Error = errObj
@@ -169,7 +171,7 @@ func (uc *PaymentUseCase) GenerateQrisPayment(ctx context.Context, req *model.Cr
 		ProviderName:  &providerName,
 	}
 
-	_, err = uc.PaymentRepository.InsertPaymentTransactionTx(ctx, tx, payment)
+	paymentID, err := uc.PaymentRepository.InsertPaymentTransactionTx(ctx, tx, payment)
 	if err != nil {
 		_ = tx.Rollback()
 		errObj := httpError.NewInternalServerError()
@@ -181,7 +183,7 @@ func (uc *PaymentUseCase) GenerateQrisPayment(ctx context.Context, req *model.Cr
 
 	rawPayload := utils.ConvertString(snapResp)
 	event := &entity.PaymentEventLog{
-		PaymentTransactionID: payment.ID,
+		PaymentTransactionID: paymentID,
 		EventType:            "CREATE",
 		EventDescription:     "Create QRIS Snap payment via Midtrans",
 		RawPayload:           &rawPayload,

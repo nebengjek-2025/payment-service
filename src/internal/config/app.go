@@ -47,16 +47,28 @@ func Bootstrap(config *BootstrapConfig) {
 		config.Redis,
 	)
 
+	paymentUseCase := usecase.NewPaymentUseCase(
+		config.Log,
+		config.Config,
+		userRepository,
+		paymentRepository,
+		orderRepository,
+		config.DB,
+		config.Redis,
+	)
+
 	// setup controller
 	walletController := http.NewWalletController(walletUseCase, config.Log)
+	paymentController := http.NewPaymentController(paymentUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.VerifyBearer(config.Config)
 
 	routeConfig := route.RouteConfig{
-		App:              config.App,
-		WalletController: walletController,
-		AuthMiddleware:   authMiddleware,
+		App:               config.App,
+		WalletController:  walletController,
+		PaymentController: paymentController,
+		AuthMiddleware:    authMiddleware,
 	}
 	routeConfig.Setup()
 }

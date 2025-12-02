@@ -2,7 +2,7 @@ package model
 
 type CreateQrisPaymentRequest struct {
 	OrderID string `json:"orderId" validate:"required"`
-	UserID  string `json:"userId" validate:"required"` // passenger
+	UserID  string `json:"userId" validate:"required"`
 }
 
 type QrisSnapPaymentResponse struct {

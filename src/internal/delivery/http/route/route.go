@@ -21,7 +21,6 @@ func (c *RouteConfig) Setup() {
 	})
 	c.SetupGuestRoute()
 	c.SetupAuthRoute()
-
 }
 func (c *RouteConfig) SetupGuestRoute() {
 	c.App.Post("/payment/v1/webhook", c.PaymentController.CallbackPayment)
@@ -32,5 +31,5 @@ func (c *RouteConfig) SetupAuthRoute() {
 	c.App.Post("/wallet/v1/top-up", c.WalletController.TopUpWallet)
 	c.App.Get("/wallet/v1/info", c.WalletController.GetWallet)
 
-	c.App.Post("/payment/v1/trip", c.PaymentController.GeneratePayment)
+	c.App.Post("/order/v1/payment", c.PaymentController.GeneratePayment)
 }
